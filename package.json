@@ -19,7 +19,7 @@
     "passport": "node dist/src/cli/passport.js",
     "index": "node dist/src/cli/indexer.js",
     "index:dev": "nodemon --delay 2 --watch dist --exec 'npm run index -- '",
-    "index:all": "concurrently --raw -P 'npm:index -- --chain=mainnet {@}' 'npm:index -- --chain=optimism {@}' 'npm:index -- --chain=goerli {@}' 'npm:index -- --chain=fantom {@}'"
+    "index:all": "concurrently --raw -P 'npm:index -- --chain=goerli {@}'"
   },
   "imports": {
     "#abis/*": {

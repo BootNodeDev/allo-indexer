@@ -1,4 +1,4 @@
-app = "indexer-staging"
+app = "bn-grants-stack-indexer"
 primary_region = "den"
 kill_signal = "SIGINT"
 kill_timeout = 5
@@ -15,7 +15,7 @@ kill_timeout = 5
   web = "sh -c 'rm -rf $STORAGE_DIR/* && npm start'"
 
 [mounts]
-  source="indexer_staging"
+  source="bn_grants_stack_indexer"
   destination="/mnt/indexer"
 
 [[services]]
