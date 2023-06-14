@@ -5,7 +5,7 @@ import StatusesBitmap from "statuses-bitmap";
 
 import { fetchJsonCached as ipfs } from "../utils/ipfs.js";
 import { convertToUSD, convertFromUSD } from "../prices/index.js";
-import { eventRenames, tokenDecimals } from "../config.js";
+import config, { eventRenames, tokenDecimals } from "../config.js";
 import { DetailedVote } from "./types.js";
 
 // Event handlers
@@ -29,6 +29,11 @@ function fullProjectId(
     ["uint256", "address", "uint256"],
     [projectChainId, projectRegistryAddress, projectId]
   );
+}
+
+enum MetadataType {
+  ProjectMetadata,
+  ProgramMetadata
 }
 
 async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
@@ -112,6 +117,89 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
       await db.collection("projects").updateById(id, (project) => ({
         ...project,
         owners: project.owners.filter((o: string) => o == event.args.owner),
+      }));
+      break;
+    }
+    // V3
+    case "ProjectCreatedV3": {
+      // await db.collection("projects-v3").insert({
+      //   id: event.args.projectID,
+      //   projectNumber: 0, // TODO - need this?
+      //   projectMetaPtr: null,
+      //   programMetaPtr: null,
+      //   owners: [event.args.owner],
+      //   createdAtBlock: event.blockNumber,
+      // });
+
+      // Do nothing - Project is inserted with RoleGranted event
+      break;
+    }
+    case "MetadataUpdatedV3": {
+      const id = event.args.projectID;
+      let isProject = event.args.metadataType === MetadataType.ProgramMetadata;
+
+      const project = await db.collection("projects-v3").findById(id)
+
+      try {
+        await db.collection("projects-v3").updateById(id, (project) => ({
+          ...project,
+          ...(isProject && {projectMetaPtr: event.args.metadata.pointer}),
+          ...(!isProject && {programMetaPtr: event.args.metadata.pointer}),
+        }));
+
+        return async () => {
+          const metadata = await ipfs(
+            event.args.metadata.pointer,
+            indexer.cache
+          );
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await db.collection("projects-v3").updateById(id, (project: any) => {
+            if (project.projectMetaPtr === event.args.metadata.pointer || project.programMetaPtr === event.args.metadata.pointer ) {
+              return {
+                ...project,
+                ...(isProject && {projectMetadata: metadata}),
+                ...(!isProject && {programMetadata: metadata}),
+              };
+            }
+
+            return project;
+          });
+        };
+      } catch (e) {
+        console.error("Project not found", event.args.projectID.toNumber());
+      }
+      break;
+    }
+    case "RoleGranted": { // this event is emitted before ProjectCreated so we use this to create the project
+      const id = event.args.role;
+
+      const project = await db.collection("projects-v3").findById(id)
+
+      if (!project) {
+        await db.collection("projects-v3").insert({
+          id,
+          projectNumber: 0, // TODO - need this?
+          projectMetaPtr: null,
+          programMetaPtr: null,
+          owners: [event.args.account],
+          createdAtBlock: event.blockNumber,
+        });
+      } else {
+        await db.collection("projects-v3").updateById(id, (project) => ({
+          ...project,
+          owners: [...project.owners, event.args.account],
+        }));
+      }
+
+      break;
+    }
+    case "RoleRevoked": {
+      const id = event.args.role;
+
+      await db.collection("projects-v3").updateById(id, (project) => ({
+        ...project,
+        owners: project.owners.filter((o: string) => o == event.args.account),
       }));
       break;
     }
@@ -221,6 +309,81 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
       };
     }
 
+    case "RoundCreatedV3": {
+      let contract = indexer.subscribe(
+        event.args.roundAddress,
+        (
+          await import("#abis/v3/RoundImplementation.json", {
+            assert: { type: "json" },
+          })
+        ).default,
+        event.blockNumber
+      );
+
+      let applicationMetaPtr = contract.applicationMetaPtr();
+      let metaPtr = contract.roundMetaPtr();
+
+      let token = ""
+      let applicationsStartTime = contract.applicationsStartTime();
+      let applicationsEndTime = contract.applicationsEndTime();
+      let roundStartTime = contract.roundStartTime();
+      let roundEndTime = contract.roundEndTime();
+
+      applicationMetaPtr = (await applicationMetaPtr).pointer;
+      metaPtr = (await metaPtr).pointer;
+      applicationsStartTime = (await applicationsStartTime).toString();
+      applicationsEndTime = (await applicationsEndTime).toString();
+      roundStartTime = (await roundStartTime).toString();
+      roundEndTime = (await roundEndTime).toString();
+
+      const roundId = event.args.roundAddress;
+
+      await db.collection("rounds").insert({
+        id: roundId,
+        amountUSD: 0,
+        votes: 0,
+        token,
+        matchAmount: "0",
+        matchAmountUSD: 0,
+        uniqueContributors: 0,
+        applicationMetaPtr,
+        applicationMetadata: null,
+        metaPtr,
+        metadata: null,
+        applicationsStartTime,
+        applicationsEndTime,
+        roundStartTime,
+        roundEndTime,
+        createdAtBlock: event.blockNumber,
+        updatedAtBlock: event.blockNumber,
+        isV3: true,
+      });
+
+      // create empty sub collections
+      await db.collection(`rounds/${roundId}/projects`).replaceAll([]);
+      await db.collection(`rounds/${roundId}/applications`).replaceAll([]);
+      await db.collection(`rounds/${roundId}/votes`).replaceAll([]);
+      await db.collection(`rounds/${roundId}/contributors`).replaceAll([]);
+
+      return async () => {
+        (await roundMetaPtrUpdated(indexer, {
+          ...event,
+          address: event.args.roundAddress,
+          args: {
+            newMetaPtr: { pointer: metaPtr },
+          },
+        }))!();
+
+        (await applicationMetaPtrUpdated(indexer, {
+          ...event,
+          address: event.args.roundAddress,
+          args: {
+            newMetaPtr: { pointer: applicationMetaPtr },
+          },
+        }))!();
+      };
+    }
+
     case "MatchAmountUpdated": {
       return matchAmountUpdated(indexer, event);
     }
@@ -258,6 +421,10 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
         metadata: null,
         createdAtBlock: event.blockNumber,
         statusUpdatedAtBlock: event.blockNumber,
+        statusSnapshots: [{
+          status: "PENDING",
+          statusUpdatedAtBlock: event.blockNumber,
+        }]
       });
 
       const isNewProject = await projects.upsertById(projectId, (p) => {
@@ -273,6 +440,10 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
             metadata: null,
             createdAtBlock: event.blockNumber,
             statusUpdatedAtBlock: event.blockNumber,
+            statusSnapshots: [{
+              status: "PENDING",
+              statusUpdatedAtBlock: event.blockNumber,
+            }]
           }
         );
       });
@@ -363,6 +534,10 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
             ...application,
             status: statusString,
             statusUpdatedAtBlock: event.blockNumber,
+            statusSnapshots: [...application.statusSnapshots, {
+              status: statusString,
+              statusUpdatedAtBlock: event.blockNumber,
+            }]
           }));
 
         if (application) {
@@ -372,6 +547,10 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
               ...application,
               status: statusString,
               statusUpdatedAtBlock: event.blockNumber,
+              statusSnapshots: [...application.statusSnapshots, {
+                status: statusString,
+                statusUpdatedAtBlock: event.blockNumber,
+              }]
             }));
         }
       }
@@ -411,7 +590,45 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
       break;
     }
 
+    case "StrategyContractCreated": {
+      const roundId = event.args.roundAddress;
+      await db.collection(
+        'rounds'
+      ).updateById(roundId, (round) => ({
+        ...round,
+        strategy: event.args.strategyAddress,
+        strategyImplementation: event.args.strategyImplementation
+      }));
+
+      const strategiesByChain = Object.fromEntries(
+        config.chains.map((chain) => {
+          return [
+            chain.id,
+            chain.strategies
+          ];
+        })
+      );
+
+      const abi = strategiesByChain[indexer.chainId][event.args.strategyImplementation].abi
+      indexer.subscribe(
+        event.args.strategyAddress,
+        (
+          await import(
+            abi,
+            {
+              assert: { type: "json" },
+            }
+          )
+        ).default,
+        event.blockNumber
+      );
+      break;
+    }
+
+    // TODO - direct payout
+
     // --- Votes
+    // TODO - review if compatible with V3
     case "Voted": {
       return async () => {
         const voteId = ethers.utils.solidityKeccak256(
@@ -435,7 +652,7 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
           application.status !== "APPROVED" ||
           round === undefined
         ) {
-          // TODO: We seem to be ceceiving votes for projects that have been rejected? Here's an example:
+          // TODO: We seem to be receiving votes for projects that have been rejected? Here's an example:
           // Project ID: 0x79f3e178005bfbe0a3defff8693009bb12e58102763501e52995162820ae3560
           // Round ID: 0xd95a1969c41112cee9a2c931e849bcef36a16f4c
           return;

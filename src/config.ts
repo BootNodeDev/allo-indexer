@@ -14,6 +14,7 @@ export type Chain = {
     fromBlock?: number;
     events?: Record<string, string>;
   }[];
+  strategies: Record<string, {abi: string}>;
 };
 
 const chains: Chain[] = [
@@ -54,6 +55,7 @@ const chains: Chain[] = [
         fromBlock: 16994526,
       },
     ],
+    strategies: {}
   },
   {
     id: 5,
@@ -82,33 +84,54 @@ const chains: Chain[] = [
       },
     ],
     subscriptions: [
+      // {
+      //   address: "0x832c5391dc7931312CbdBc1046669c9c3A4A28d5",
+      //   abi: "#abis/v1/ProjectRegistry.json",
+      // },
+      // {
+      //   address: "0x5770b7a57BD252FC4bB28c9a70C9572aE6400E48",
+      //   abi: "#abis/v1/RoundFactory.json",
+      //   events: {
+      //     RoundCreated: "RoundCreatedV1",
+      //   },
+      // },
+      // {
+      //   address: "0xa71864fAd36439C50924359ECfF23Bb185FFDf21",
+      //   abi: "#abis/v2/ProjectRegistry.json",
+      //   fromBlock: 8738420,
+      // },
+      // {
+      //   address: "0x24F9EBFAdf095e0afe3d98635ee83CD72e49B5B0",
+      //   abi: "#abis/v2/RoundFactory.json",
+      //   fromBlock: 8738430,
+      // },
+      // {
+      //   address: "0x06A6Cc566c5A88E77B1353Cdc3110C2e6c828e38",
+      //   abi: "#abis/v2/QuadraticFundingVotingStrategyFactory.json",
+      //   fromBlock: 8790265,
+      // },
       {
-        address: "0x832c5391dc7931312CbdBc1046669c9c3A4A28d5",
-        abi: "#abis/v1/ProjectRegistry.json",
-      },
-      {
-        address: "0x5770b7a57BD252FC4bB28c9a70C9572aE6400E48",
-        abi: "#abis/v1/RoundFactory.json",
+        address: "0x9Cd9211c719693610F2cF715F03a4cc3EAe96132",
+        abi: "#abis/v3/Registry.json",
         events: {
-          RoundCreated: "RoundCreatedV1",
+          ProjectCreated: "ProjectCreatedV3",
+          MetadataUpdated: "MetadataUpdatedV3"
         },
+        fromBlock: 9127688,
       },
       {
-        address: "0xa71864fAd36439C50924359ECfF23Bb185FFDf21",
-        abi: "#abis/v2/ProjectRegistry.json",
-        fromBlock: 8738420,
-      },
-      {
-        address: "0x24F9EBFAdf095e0afe3d98635ee83CD72e49B5B0",
-        abi: "#abis/v2/RoundFactory.json",
-        fromBlock: 8738430,
-      },
-      {
-        address: "0x06A6Cc566c5A88E77B1353Cdc3110C2e6c828e38",
-        abi: "#abis/v2/QuadraticFundingVotingStrategyFactory.json",
-        fromBlock: 8790265,
+        address: "0x7aeb4408B198F8fbEb87007B82d863416dF3C8Af",
+        abi: "#abis/v3/RoundFactory.json",
+        events: {
+          RoundCreated: "RoundCreatedV3"
+        },
+        fromBlock: 9139264,
       },
     ],
+    strategies: {
+      "0xD8d9c9090A5651c361fd19C5669ba9AA48a8cFcD": {abi: "#abis/v3/MerklePayoutStrategy.json"},
+      "0x631De84A116314eCD6F5a87ff3893fced7E5f33F": {abi: "#abis/v3/DirectStrategy.json"},
+    }
   },
   {
     id: 10,
@@ -147,6 +170,7 @@ const chains: Chain[] = [
         fromBlock: 87168143,
       },
     ],
+    strategies: {}
   },
   {
     id: 250,
@@ -188,6 +212,7 @@ const chains: Chain[] = [
         fromBlock: 55528191,
       },
     ],
+    strategies: {}
   },
 ];
 
