@@ -136,7 +136,7 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
     }
     case "MetadataUpdatedV3": {
       const id = event.args.projectID;
-      let isProject = event.args.metadataType === MetadataType.ProgramMetadata;
+      const isProject = event.args.metadataType === MetadataType.ProgramMetadata;
 
       const project = await db.collection("projects-v3").findById(id)
 
@@ -310,7 +310,7 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
     }
 
     case "RoundCreatedV3": {
-      let contract = indexer.subscribe(
+      const contract = indexer.subscribe(
         event.args.roundAddress,
         (
           await import("#abis/v3/RoundImplementation.json", {
@@ -320,21 +320,12 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
         event.blockNumber
       );
 
-      let applicationMetaPtr = contract.applicationMetaPtr();
-      let metaPtr = contract.roundMetaPtr();
-
-      let token = ""
-      let applicationsStartTime = contract.applicationsStartTime();
-      let applicationsEndTime = contract.applicationsEndTime();
-      let roundStartTime = contract.roundStartTime();
-      let roundEndTime = contract.roundEndTime();
-
-      applicationMetaPtr = (await applicationMetaPtr).pointer;
-      metaPtr = (await metaPtr).pointer;
-      applicationsStartTime = (await applicationsStartTime).toString();
-      applicationsEndTime = (await applicationsEndTime).toString();
-      roundStartTime = (await roundStartTime).toString();
-      roundEndTime = (await roundEndTime).toString();
+      const applicationMetaPtr = await (contract.applicationMetaPtr()).pointer;
+      const metaPtr = await (contract.roundMetaPtr()).pointer;
+      const applicationsStartTime = await (contract.applicationsStartTime()).toString();
+      const applicationsEndTime = await (contract.applicationsEndTime()).toString();
+      const roundStartTime = await (contract.roundStartTime()).toString();
+      const roundEndTime = await (contract.roundEndTime()).toString();
 
       const roundId = event.args.roundAddress;
 
@@ -342,7 +333,7 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
         id: roundId,
         amountUSD: 0,
         votes: 0,
-        token,
+        token: "",
         matchAmount: "0",
         matchAmountUSD: 0,
         uniqueContributors: 0,
