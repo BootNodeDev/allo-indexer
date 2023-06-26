@@ -81,6 +81,7 @@ export const filterPassportByEvidence = (
  * @param scorerId number
  * @param limit number
  * @param offset number
+ * @param maxAttempts
  * @returns Promise<PassportScoresResponse>
  */
 export const fetchPassportScores = async (
@@ -119,7 +120,7 @@ export const fetchPassportScores = async (
     } catch (e) {
       attempt = attempt + 1;
       await wait(attempt * 5000);
-      console.log("[Passport] Retrying, attempt:", attempt);
+      console.log("[Passport] Retrying, attempt:", attempt, e);
     }
   }
 
