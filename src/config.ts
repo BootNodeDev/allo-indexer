@@ -104,6 +104,14 @@ const chains: Chain[] = [
         fromBlock: 8738430,
       },
       {
+        address: "0x3254Df803c9996c6864560AA479c2CC83A604802",
+        abi: "#abis/v2/RoundFactory.json",
+        fromBlock: 9244247,
+        events: {
+          ApplicationStatusesUpdated: "ApplicationStatusesUpdatedV2"
+        }
+      },
+      {
         address: "0x06A6Cc566c5A88E77B1353Cdc3110C2e6c828e38",
         abi: "#abis/v2/QuadraticFundingVotingStrategyFactory.json",
         fromBlock: 8790265,

@@ -18,6 +18,7 @@ enum ApplicationStatus {
   APPROVED,
   REJECTED,
   CANCELLED,
+  IN_REVIEW
 }
 
 function fullProjectId(
@@ -258,6 +259,10 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
         metadata: null,
         createdAtBlock: event.blockNumber,
         statusUpdatedAtBlock: event.blockNumber,
+        statusSnapshots: [{
+          status: "PENDING",
+          statusUpdatedAtBlock: event.blockNumber,
+        }]
       });
 
       const isNewProject = await projects.upsertById(projectId, (p) => {
@@ -273,6 +278,10 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
             metadata: null,
             createdAtBlock: event.blockNumber,
             statusUpdatedAtBlock: event.blockNumber,
+            statusSnapshots: [{
+              status: "PENDING",
+              statusUpdatedAtBlock: event.blockNumber,
+            }]
           }
         );
       });
@@ -349,8 +358,11 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
       break;
     }
 
-    case "ApplicationStatusesUpdated": {
-      const bitmap = new StatusesBitmap(256n, 2n);
+    case "ApplicationStatusesUpdated":
+    case "ApplicationStatusesUpdatedV2": {
+      const bitmap = eventName === "ApplicationStatusesUpdatedV2"
+        ? new StatusesBitmap(256n, 4n)
+        : new StatusesBitmap(256n, 2n);
       bitmap.setRow(event.args.index.toBigInt(), event.args.status.toBigInt());
       const startIndex = event.args.index.toBigInt() * bitmap.itemsPerRow;
 
@@ -359,20 +371,42 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
         const statusString = ApplicationStatus[status];
         const application = await db
           .collection(`rounds/${event.address}/applications`)
-          .updateById(i.toString(), (application) => ({
-            ...application,
-            status: statusString,
-            statusUpdatedAtBlock: event.blockNumber,
-          }));
+          .updateById(i.toString(), (application) => {
+            let newApplication = {...application}
+            const prevStatus = application.status;
+            newApplication.status = statusString
+            newApplication.statusUpdatedAtBlock = event.blockNumber
+            newApplication.statusSnapshots = [...application.statusSnapshots]
+
+            if (prevStatus !== statusString) {
+              newApplication.statusSnapshots.push({
+                status: statusString,
+                statusUpdatedAtBlock: event.blockNumber,
+              })
+            }
+
+            return newApplication
+          })
 
         if (application) {
           await db
             .collection(`rounds/${event.address}/projects`)
-            .updateById(application.projectId, (application) => ({
-              ...application,
-              status: statusString,
-              statusUpdatedAtBlock: event.blockNumber,
-            }));
+            .updateById(application.projectId, (application) =>  => {
+              let newApplication = {...application}
+              const prevStatus = application.status;
+              newApplication.status = statusString
+              newApplication.statusUpdatedAtBlock = event.blockNumber
+              newApplication.statusSnapshots = [...application.statusSnapshots]
+
+              if (prevStatus !== statusString) {
+                newApplication.statusSnapshots.push({
+                  status: statusString,
+                  statusUpdatedAtBlock: event.blockNumber,
+                })
+              }
+
+              return newApplication
+            })
         }
       }
       break;
