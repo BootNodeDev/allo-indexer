@@ -122,6 +122,7 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
     case "RoundCreated": {
       let contract: ethers.Contract;
       let matchAmount;
+      let version;
 
       if (eventName === "RoundCreatedV1") {
         contract = indexer.subscribe(
@@ -134,6 +135,7 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
           event.blockNumber
         );
         matchAmount = "0";
+        version = "0.0.1";
       } else {
         contract = indexer.subscribe(
           event.args.roundAddress,
@@ -145,6 +147,7 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
           event.blockNumber
         );
         matchAmount = contract.matchAmount();
+        version = contract.VERSION();
       }
 
       let applicationMetaPtr = contract.applicationMetaPtr();
@@ -164,6 +167,7 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
       applicationsEndTime = (await applicationsEndTime).toString();
       roundStartTime = (await roundStartTime).toString();
       roundEndTime = (await roundEndTime).toString();
+      version = (await version).toString();
 
       const roundId = event.args.roundAddress;
 
@@ -185,6 +189,7 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
         roundEndTime,
         createdAtBlock: event.blockNumber,
         updatedAtBlock: event.blockNumber,
+        version
       });
 
       // create empty sub collections
@@ -358,9 +363,9 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
       break;
     }
 
-    case "ApplicationStatusesUpdated":
-    case "ApplicationStatusesUpdatedV2": {
-      const bitmap = eventName === "ApplicationStatusesUpdatedV2"
+    case "ApplicationStatusesUpdated": {
+      const round = await db.collection("rounds").findById(event.address);
+      const bitmap = round?.version === "1.1.0"
         ? new StatusesBitmap(256n, 4n)
         : new StatusesBitmap(256n, 2n);
       bitmap.setRow(event.args.index.toBigInt(), event.args.status.toBigInt());
