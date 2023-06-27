@@ -396,7 +396,7 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
         if (application) {
           await db
             .collection(`rounds/${event.address}/projects`)
-            .updateById(application.projectId, (application) =>  => {
+            .updateById(application.projectId, (application) => {
               let newApplication = {...application}
               const prevStatus = application.status;
               newApplication.status = statusString
