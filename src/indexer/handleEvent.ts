@@ -374,7 +374,7 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
         const application = await db
           .collection(`rounds/${event.address}/applications`)
           .updateById(i.toString(), (application) => {
-            let newApplication = {...application}
+            const newApplication = {...application}
             const prevStatus = application.status;
             newApplication.status = statusString
             newApplication.statusUpdatedAtBlock = event.blockNumber
@@ -394,7 +394,7 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
           await db
             .collection(`rounds/${event.address}/projects`)
             .updateById(application.projectId, (application) => {
-              let newApplication = {...application}
+              const newApplication = {...application}
               const prevStatus = application.status;
               newApplication.status = statusString
               newApplication.statusUpdatedAtBlock = event.blockNumber
@@ -681,7 +681,7 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
       await db
         .collection(`rounds/${round}/applications`)
         .updateById(event.args.applicationIndex.toString(), (application) => {
-          let newApplication = {...application}
+          const newApplication = {...application}
           const prevStatus = application.status;
           newApplication.status = statusString
           newApplication.statusUpdatedAtBlock = event.blockNumber
