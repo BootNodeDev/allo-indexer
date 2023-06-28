@@ -364,10 +364,7 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
     }
 
     case "ApplicationStatusesUpdated": {
-      const round = await db.collection("rounds").findById(event.address);
-      const bitmap = round?.version === "1.1.0"
-        ? new StatusesBitmap(256n, 4n)
-        : new StatusesBitmap(256n, 2n);
+      const bitmap = new StatusesBitmap(256n, 2n);
       bitmap.setRow(event.args.index.toBigInt(), event.args.status.toBigInt());
       const startIndex = event.args.index.toBigInt() * bitmap.itemsPerRow;
 
@@ -648,6 +645,59 @@ async function handleEvent(indexer: Indexer<JsonStorage>, event: Event) {
             .insert(vote),
         ]);
       };
+    }
+
+    // --- Direct Payout Strategy
+    case "PayoutContractCreated": {
+      indexer.subscribe(
+        event.args.payoutContractAddress,
+        (
+          await import(
+            "#abis/v2/DirectPayoutStrategyImplementation.json",
+            {
+              assert: { type: "json" },
+            }
+          )
+        ).default,
+        event.blockNumber
+      );
+      break;
+    }
+
+    case "ApplicationInReview": {
+      const contract = indexer.subscribe(
+        event.address,
+        (
+          await import("#abis/v2/DirectPayoutStrategyImplementation.json", {
+            assert: { type: "json" },
+          })
+        ).default,
+        event.blockNumber
+      );
+
+      const round = await contract.roundAddress();
+
+      const statusString = ApplicationStatus[4];
+      await db
+        .collection(`rounds/${round}/applications`)
+        .updateById(event.args.applicationIndex.toString(), (application) => {
+          let newApplication = {...application}
+          const prevStatus = application.status;
+          newApplication.status = statusString
+          newApplication.statusUpdatedAtBlock = event.blockNumber
+          newApplication.statusSnapshots = [...application.statusSnapshots]
+
+          if (prevStatus !== statusString) {
+            newApplication.statusSnapshots.push({
+              status: statusString,
+              statusUpdatedAtBlock: event.blockNumber,
+            })
+          }
+
+          return newApplication
+        })
+
+      break;
     }
 
     default:
