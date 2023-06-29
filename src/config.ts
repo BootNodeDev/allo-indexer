@@ -109,7 +109,7 @@ const chains: Chain[] = [
         fromBlock: 8790265,
       },
       {
-        address: "0xBD4Ea65DBbc5677F8C230a4B1CF4296E20A80160",
+        address: "0xEA5cddfb6B755636852CE10c4407Cc1613B78355",
         abi: "#abis/v2/DirectPayoutStrategyFactory.json",
         fromBlock: 9250877,
       },

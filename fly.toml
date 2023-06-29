@@ -1,22 +1,27 @@
+# fly.toml app configuration file generated for bn-grants-stack-indexer on 2023-06-28T17:48:52-03:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
 app = "bn-grants-stack-indexer"
 primary_region = "den"
 kill_signal = "SIGINT"
-kill_timeout = 5
+kill_timeout = "5s"
 
 [experimental]
   auto_rollback = true
 
 [env]
+  CACHE_DIR = "/mnt/indexer/cache"
   PORT = "8080"
   STORAGE_DIR = "/mnt/indexer/data"
-  CACHE_DIR = "/mnt/indexer/cache"
 
 [processes]
   web = "sh -c 'rm -rf $STORAGE_DIR/* && npm start'"
 
-[mounts]
-  source="bn_grants_stack_indexer"
-  destination="/mnt/indexer"
+[[mounts]]
+  source = "bn_grants_stack_indexer"
+  destination = "/mnt/indexer"
 
 [[services]]
   protocol = "tcp"
@@ -31,7 +36,6 @@ kill_timeout = 5
   [[services.ports]]
     port = 443
     handlers = ["tls", "http"]
-
   [services.concurrency]
     type = "connections"
     hard_limit = 25
@@ -40,4 +44,5 @@ kill_timeout = 5
   [[services.tcp_checks]]
     interval = "30s"
     timeout = "10s"
-    grace_period = "1m"
+    grace_period = "1m0s"
+    restart_limit = 0
